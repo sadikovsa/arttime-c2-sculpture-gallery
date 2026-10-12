@@ -23,7 +23,9 @@
  const search = $('[data-search]');
  let composing = false;
  const normalized = text => text.toLocaleLowerCase('ru').replace(/ё/g,'е').trim();
+ const filterMotion = window.ArtTimeFilterMotion.create(cards, {isPaused: () => paused});
  function filterProducts(updateURL = true) {
+  const filterSnapshot = updateURL ? filterMotion.capture() : null;
   const query = normalized(search.value);
   const terms = query.split(/\s+/).filter(Boolean);
   let visible = 0;
@@ -41,6 +43,7 @@
    query ? url.searchParams.set('q',search.value.trim()) : url.searchParams.delete('q');
    history.replaceState(null,'',url);
   }
+  filterMotion.play(filterSnapshot);
   scheduleScene();
  }
  function restoreFilters() {

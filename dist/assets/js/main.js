@@ -11,7 +11,7 @@
   const paragraphs = $$('.product__fallback .disclosure-body p', card);
   return {id:card.dataset.productCard,title:$('h3',card).textContent,category:card.dataset.category,
    description:paragraphs[0].textContent,specification:paragraphs[1].textContent,
-   image:$('img',card).getAttribute('src'),width:$('img',card).width,height:$('img',card).height};
+   image:$('img',card).getAttribute('src'),width:Number($('img',card).getAttribute('width')),height:Number($('img',card).getAttribute('height'))};
  });
  const galleries = $$('.gallery-card, .inspiration-card').map(card => ({
   title:$('h3',card).textContent,description:$('figcaption p',card).textContent,

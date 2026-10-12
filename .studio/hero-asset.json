@@ -1,0 +1,31 @@
+{
+  "slug": "arttime-c2-sculpture-gallery",
+  "name": "hero-sculpture",
+  "generatedOriginal": "exec-5298e791-ceca-48d0-9ecb-7835cc3e4e6f.png",
+  "mode": "RGBA",
+  "alpha": [
+    0,
+    255
+  ],
+  "variants": {
+    "640": {
+      "path": "assets/img/hero-sculpture-640.webp",
+      "width": 640,
+      "height": 800,
+      "bytes": 69786
+    },
+    "960": {
+      "path": "assets/img/hero-sculpture-960.webp",
+      "width": 960,
+      "height": 1200,
+      "bytes": 128192
+    },
+    "1122": {
+      "path": "assets/img/hero-sculpture-1122.webp",
+      "width": 1122,
+      "height": 1402,
+      "bytes": 156130
+    }
+  },
+  "usage": "hero-illustration-not-client-case; original official photos used in catalog and factual gallery"
+}

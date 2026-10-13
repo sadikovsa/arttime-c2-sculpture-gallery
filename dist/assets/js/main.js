@@ -6,6 +6,7 @@
  const small = window.matchMedia('(max-width: 760px)');
  const $ = (selector, within = document) => within.querySelector(selector);
  const $$ = (selector, within = document) => [...within.querySelectorAll(selector)];
+ const motion = window.ArtTimeMotion.create(()=>!reduced.matches&&!paused);
  const cards = $$('[data-product-card]');
  const products = cards.map(card => {
   const paragraphs = $$('.product__fallback .disclosure-body p', card);
@@ -67,11 +68,9 @@
   $$('[data-category-select]').forEach(item => item.setAttribute('aria-pressed',String(item === button)));
   const product = products.find(p => p.category === nextCategory);
   const image = $('#category-preview-image');
-  if (previewAnimation) previewAnimation.cancel();
-  image.src = product.image; image.alt = product.title;
+  motion.swap(image,()=>{image.src = product.image;image.alt = product.title;},1,450);
   $('#category-preview-label').textContent = `${nextCategory} / ${String(products.filter(p => p.category === nextCategory).length).padStart(2,'0')}`;
   $('#category-preview-name').textContent = product.title;
-  if (!reduced.matches) previewAnimation = image.animate([{opacity:.45,transform:'translateY(12px)'},{opacity:1,transform:'translateY(0)'}],{duration:270,easing:'cubic-bezier(.22,.68,.25,1)'});
   category = nextCategory;filterProducts();
  }));
  // Native details: reverse from the current panel height; the latest click owns completion.
@@ -130,16 +129,17 @@
   const restoreTo = previous ? openers.get(previous) : opener;
   if(previous) {openers.delete(previous);previous.close();}
   openers.set(dialog,restoreTo || opener);
-  dialog.showModal();root.classList.add('dialog-open');dialog.scrollTop = 0;
+  dialog.showModal();root.classList.add('dialog-open');dialog.scrollTop = 0;motion.enter(dialog,opener,'x');
  }
  dialogs.forEach(dialog => {
-  $('[data-close]',dialog).addEventListener('click',() => dialog.close());
+  $('[data-close]',dialog).addEventListener('click',() => motion.close(dialog));
   dialog.addEventListener('click',event => {
    if(event.target !== dialog) return;
    const rect = dialog.getBoundingClientRect();
-   if(event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+   if(event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) motion.close(dialog);
   });
-  dialog.addEventListener('close',() => {
+  dialog.addEventListener('cancel',e=>{e.preventDefault();motion.close(dialog);});
+  dialog.addEventListener('close',() => {motion.scope(dialog);
    if(!dialogs.some(item => item.open)) root.classList.remove('dialog-open');
    const opener = openers.get(dialog);openers.delete(dialog);
    if(opener && opener.isConnected && !dialogs.some(item => item.open)) opener.focus({preventScroll:true});
@@ -166,7 +166,7 @@
   $('#gallery-dialog-count').textContent = `${galleryIndex+1} / ${galleries.length}`;
  }
  $$('[data-gallery]').forEach(trigger => trigger.addEventListener('click',event => {event.preventDefault();galleryIndex = Number(trigger.dataset.gallery);showGalleryImage();showDialog(galleryDialog,trigger);}));
- function advanceGallery(change) {galleryIndex = (galleryIndex+change+galleries.length)%galleries.length;showGalleryImage();}
+ function advanceGallery(change) {galleryIndex = (galleryIndex+change+galleries.length)%galleries.length;motion.swap($('#gallery-dialog-image'),showGalleryImage,change,430);}
  $('[data-gallery-prev]').addEventListener('click',() => advanceGallery(-1));
  $('[data-gallery-next]').addEventListener('click',() => advanceGallery(1));
  galleryDialog.addEventListener('keydown',event => {if(event.key === 'ArrowLeft') {event.preventDefault();advanceGallery(-1);}if(event.key === 'ArrowRight') {event.preventDefault();advanceGallery(1);}});
@@ -218,6 +218,7 @@
   const rect = scene.getBoundingClientRect();
   const distance = scene.offsetHeight-stage.offsetHeight;
   const progress = clamp(-rect.top/Math.max(1,distance));
+  if(progress>.05){const light=$('.sculpture-sheen');if(light)motion.scope(light);}
   scene.dataset.progress = progress.toFixed(3);
   stage.dataset.motionState = progress < .1 ? 'start' : progress > .9 ? 'end' : 'middle';
   const travel = small.matches ? 50 : 160;
@@ -226,7 +227,7 @@
   heroCopy.style.transform = `translate3d(0,${-progress*140}px,0) scale(${1-progress*.08})`;
   heroCopy.style.opacity = String(1-clamp(progress/.6));
   caption.style.opacity = String(1-clamp(progress/.4));index.style.opacity = String(1-clamp(progress/.4));
-  plane.style.transform = `translate3d(0,${100*(1-clamp((progress-.1)/.8))}%,0)`;
+  const shutter=clamp((progress-.1)/.8);plane.style.transform='none';plane.style.clipPath=`polygon(0 ${Math.max(0,100-shutter*118)}%,100% ${Math.min(100,118-shutter*118)}%,100% 100%,0 100%)`;
   arrival.style.opacity = String(clamp((progress-.6)/.35));
   arrival.style.transform = `translate3d(0,${(1-progress)*90}px,0)`;
  }
@@ -234,11 +235,11 @@
  function configureMotion() {
   root.classList.toggle('motion-enabled',!reduced.matches);
   motionToggle.hidden = reduced.matches;
-  if(reduced.matches) { [sculpture,heroCopy,caption,index,plane,arrival].forEach(element => {element.style.removeProperty('transform');element.style.removeProperty('opacity');}); }
+  if(reduced.matches) { [sculpture,heroCopy,caption,index,plane,arrival].forEach(element => {element.style.removeProperty('transform');element.style.removeProperty('opacity');element.style.removeProperty('clip-path');}); }
   else scheduleScene();
  }
  motionToggle.addEventListener('click',() => {
-  paused = !paused;motionToggle.setAttribute('aria-pressed',String(paused));
+  paused = !paused;root.classList.toggle('motion-paused',paused);motionToggle.setAttribute('aria-pressed',String(paused));
   motionToggle.innerHTML = paused ? 'Продолжить движение <span aria-hidden="true">▷</span>' : 'Остановить движение <span aria-hidden="true">Ⅱ</span>';
   scene.dataset.paused = String(paused);if(!paused) scheduleScene();
  });
@@ -246,5 +247,16 @@
  reduced.addEventListener('change',configureMotion);
  if(window.ResizeObserver) {const observer = new ResizeObserver(scheduleScene);observer.observe(document.body);}
  document.fonts.ready.then(scheduleScene);$$('img').forEach(image => image.addEventListener('load',scheduleScene));
- configureMotion();restoreFilters();
+ motion.bind(motionToggle,reduced);
+ const replay=$('[data-motion-replay]');replay.hidden=false;replay.disabled=reduced.matches;reduced.addEventListener('change',()=>{replay.disabled=reduced.matches;});
+ let lightRequest=0;
+ function spotlight(){const version=++lightRequest;(sculpture.decode?sculpture.decode():Promise.resolve()).then(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(version!==lightRequest||reduced.matches||paused||scene.dataset.progress>.05)return;
+  const previousLight=$('.sculpture-sheen');if(previousLight){motion.scope(previousLight);previousLight.remove();}
+  const shape=document.createElement('div'),ribbon=document.createElement('div'),b=sculpture.getBoundingClientRect(),p=stage.getBoundingClientRect();
+  shape.className='sculpture-sheen';shape.setAttribute('aria-hidden','true');shape.style.cssText=`left:${b.left-p.left}px;top:${b.top-p.top}px;width:${b.width}px;height:${b.height}px;mask-image:url("${sculpture.currentSrc}");-webkit-mask-image:url("${sculpture.currentSrc}")`;
+  ribbon.className='sheen-ribbon';shape.append(ribbon);stage.append(shape);motion.run(ribbon,[{transform:'translateX(-75%)',opacity:0},{opacity:1,offset:.18},{opacity:1,offset:.72},{transform:'translateX(40%)',opacity:0}],small.matches?800:1000,()=>shape.remove(),()=>{},{easing:'linear'});
+ }))).catch(()=>{});}
+ replay.addEventListener('click',()=>{if(reduced.matches)return;if(paused)motionToggle.click();scrollTo({top:0,behavior:'instant'});scheduleScene();spotlight();});
+ configureMotion();restoreFilters();spotlight();
 })();
